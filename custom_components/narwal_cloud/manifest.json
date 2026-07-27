@@ -1,0 +1,10 @@
+{
+  "domain": "narwal_cloud",
+  "name": "Narwal Cloud (unofficial)",
+  "codeowners": [],
+  "config_flow": true,
+  "documentation": "https://github.com/mk0000001/ha-narwal-cloud",
+  "iot_class": "cloud_polling",
+  "requirements": [],
+  "version": "0.6.0"
+}
