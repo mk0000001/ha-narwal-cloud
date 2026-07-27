@@ -1,0 +1,22 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect Narwal Cloud",
+        "description": "Enter the access and refresh tokens from the Narwal app. Both fields are stored securely in Home Assistant and are never included in this integration's source or logs. [How to obtain tokens]({token_guide_url})",
+        "data": {
+          "access_token": "Narwal access token",
+          "refresh_token": "Narwal refresh token"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Unable to connect to Narwal Cloud. Check the tokens and try again.",
+      "no_devices": "No Narwal robot is linked to this account.",
+      "invalid_response": "Narwal Cloud returned incomplete device information."
+    },
+    "abort": {
+      "already_configured": "This Narwal robot is already configured."
+    }
+  }
+}
