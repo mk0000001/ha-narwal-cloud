@@ -1,0 +1,22 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Narwal Cloud 연결",
+        "description": "Narwal 앱에서 발급된 액세스 토큰과 갱신 토큰을 입력하세요. 두 값은 Home Assistant에 안전하게 저장되며 통합 소스나 로그에 기록되지 않습니다. [토큰 구하는 방법]({token_guide_url})",
+        "data": {
+          "access_token": "Narwal 액세스 토큰",
+          "refresh_token": "Narwal 갱신 토큰"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Narwal Cloud에 연결하지 못했습니다. 토큰을 확인하고 다시 시도하세요.",
+      "no_devices": "이 계정에 연결된 Narwal 로봇이 없습니다.",
+      "invalid_response": "Narwal Cloud 응답에 기기 정보가 없습니다."
+    },
+    "abort": {
+      "already_configured": "이 Narwal 로봇은 이미 구성되어 있습니다."
+    }
+  }
+}
