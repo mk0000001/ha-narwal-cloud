@@ -10,8 +10,7 @@ Narwal은 제3자용 공개 OAuth 로그인을 제공하지 않으므로 현재 
 설치해서 작업하는 것**입니다. 토큰을 얻은 뒤 에뮬레이터와 프록시 인증서를
 통째로 삭제할 수 있어 실제 휴대전화의 보안 설정을 건드리지 않아도 됩니다.
 
-~~설정이 너무 복잡하면 Codex한테 시키면 토큰 파일까지 알아서 빼준다고
-합니다. 실화입니다.~~
+~~설정이 너무 복잡하면 Codex한테 시키면 토큰 파일까지 알아서 빼줍니다. 전 그렇게 했어요.~~
 
 ## 준비
 
@@ -60,8 +59,7 @@ The recommended approach is to install a **fresh Android emulator containing
 no personal data**. After obtaining the tokens, you can delete the whole
 emulator and proxy certificate without weakening your everyday phone.
 
-~~If this looks like too much work, ask Codex. Apparently it will even export
-the token file for you. True story.~~
+~~If this looks like too much work, ask Codex. It’ll even export the token file for you. That’s what I did.~~
 
 ## Requirements
 
