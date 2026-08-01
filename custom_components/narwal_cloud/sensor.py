@@ -12,7 +12,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE, UnitOfTime
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -28,16 +28,30 @@ async def async_setup_entry(
 ) -> None:
     """Add robot state and consumable sensors."""
     coordinator = entry.runtime_data
-    entities: list[SensorEntity] = [
-        NarwalBatterySensor(coordinator),
-        NarwalStatusSensor(coordinator, "movement_status"),
-        NarwalStatusSensor(coordinator, "cleaning_status"),
-    ]
-    entities.extend(
-        NarwalConsumableSensor(coordinator, item)
-        for item in coordinator.data.get("consumables", [])
+    async_add_entities(
+        [
+            NarwalBatterySensor(coordinator),
+            NarwalStatusSensor(coordinator, "movement_status"),
+            NarwalStatusSensor(coordinator, "cleaning_status"),
+        ]
     )
-    async_add_entities(entities)
+    current_codes: set[str] = set()
+
+    @callback
+    def async_add_new_consumables() -> None:
+        new_entities: list[SensorEntity] = []
+        for item in coordinator.data.get("consumables", []):
+            code = str(item.get("consumables_code") or item.get("type"))
+            if code not in current_codes:
+                current_codes.add(code)
+                new_entities.append(NarwalConsumableSensor(coordinator, item))
+        if new_entities:
+            async_add_entities(new_entities)
+
+    entry.async_on_unload(
+        coordinator.async_add_listener(async_add_new_consumables)
+    )
+    async_add_new_consumables()
 
 
 def battery_percentage(status: dict[str, Any]) -> int | None:

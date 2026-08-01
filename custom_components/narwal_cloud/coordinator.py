@@ -49,12 +49,15 @@ class NarwalCloudCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
-            device, status, base_status, consumables = await asyncio.gather(
+            device, status = await asyncio.gather(
                 self.client.async_get_device_info(self.device_id, self.product_id),
                 self.client.async_get_work_status(self.device_id, self.product_id),
-                self._async_get_base_status(),
-                self.client.async_get_consumables(self.device_id, self.product_id),
             )
+            # Narwal intermittently returns malformed consumable data when
+            # broker discovery and consumable REST calls overlap. Keep these
+            # optional reads sequential so one feature cannot block setup.
+            base_status = await self._async_get_base_status()
+            consumables = await self._async_get_consumables()
             status = {**status, **base_status}
             now = datetime.now()
             if (
@@ -96,6 +99,21 @@ class NarwalCloudCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 exc_info=True,
             )
             return {}
+
+    async def _async_get_consumables(self) -> list[dict[str, Any]]:
+        """Read optional consumables without failing integration setup."""
+        try:
+            return await self.client.async_get_consumables(
+                self.device_id, self.product_id
+            )
+        except NarwalCloudError:
+            _LOGGER.warning(
+                "Unable to refresh Narwal consumable data",
+                exc_info=True,
+            )
+            if self.data is not None:
+                return list(self.data.get("consumables", []))
+            return []
 
     async def _async_refresh_map_metadata(
         self, refresh_plans: bool = True
