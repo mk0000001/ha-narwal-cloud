@@ -1,4 +1,14 @@
 {
+  "entity": {
+    "camera": {
+      "map": {
+        "name": "Map"
+      },
+      "map_data": {
+        "name": "Map data"
+      }
+    }
+  },
   "config": {
     "step": {
       "user": {
