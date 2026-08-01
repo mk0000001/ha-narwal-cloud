@@ -14,11 +14,17 @@ from aiohttp import ClientError, ClientSession
 
 from .const import API_BASE_URL, CLIENT_APPLICATION_ID, CLIENT_APP_VERSION, CLIENT_VERSION_CODE
 from .auth import NarwalCredentials
-from .mqtt import NarwalMqttError, async_publish_task_command, async_request
+from .mqtt import (
+    NarwalMqttError,
+    async_publish_task_command,
+    async_request,
+    async_request_base_status,
+)
 from .protocol import (
     NarwalCleanPlan,
     NarwalMap,
     parse_clean_plans_response,
+    parse_base_status_response,
     parse_map_response,
 )
 
@@ -188,6 +194,26 @@ class NarwalCloudClient:
         if not isinstance(result, dict):
             raise NarwalCloudError("Narwal did not return the robot state")
         return result
+
+    async def async_get_base_status(
+        self, device_id: str, product_id: str
+    ) -> dict[str, int]:
+        """Return live battery data from the robot MQTT broadcast."""
+        broker_url = await self.async_get_broker_url()
+        try:
+            async with asyncio.timeout(20):
+                payload = await async_request_base_status(
+                    broker_url,
+                    self.access_token,
+                    self.client_uuid,
+                    product_id,
+                    device_id,
+                )
+            return parse_base_status_response(payload)
+        except (NarwalMqttError, TimeoutError, ValueError) as err:
+            raise NarwalCloudError(
+                "Unable to read the Narwal base status"
+            ) from err
 
     async def async_get_broker_url(self) -> str:
         """Return the regional MQTT broker selected by Narwal."""

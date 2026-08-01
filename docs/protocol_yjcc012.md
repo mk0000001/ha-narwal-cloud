@@ -139,6 +139,13 @@ Per-room configuration starts with room ID field 1 and constant field 2 = 1.
 - The camera is rendered from the current compressed grid and pose fields; no
   screenshot is retained.
 
+## Battery status
+
+- Request topic: `/status/get_device_base_status`.
+- Asynchronous broadcast: `/status/robot_base_status`.
+- YJCC012 battery percentage is protobuf fixed32 float field `2`.
+- Verified against a live value of `100.0` from firmware `v01.05.01.02`.
+
 ## Consumables
 
 - `POST /consumables-management-app-server/v3/consumables/list`
