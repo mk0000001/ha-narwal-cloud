@@ -1,4 +1,48 @@
 {
+  "entity": {
+    "binary_sensor": {
+      "turbo_mode": {
+        "name": "터보 모드"
+      }
+    },
+    "camera": {
+      "map": {
+        "name": "지도"
+      },
+      "map_data": {
+        "name": "지도 데이터"
+      }
+    },
+    "sensor": {
+      "battery": {
+        "name": "배터리"
+      },
+      "movement_status": {
+        "name": "이동 상태",
+        "state": {
+          "charging": "충전 중",
+          "cleaning": "청소 중",
+          "docked": "충전대에 있음",
+          "error": "오류",
+          "idle": "대기 중",
+          "paused": "일시 정지",
+          "returning": "충전대로 복귀 중",
+          "station_work": "스테이션 작업 중"
+        }
+      },
+      "cleaning_status": {
+        "name": "청소 모드",
+        "state": {
+          "cleaning": "청소 중",
+          "error": "오류",
+          "paused": "일시 정지",
+          "returning": "복귀 중",
+          "station_work": "물걸레 세척/건조 중",
+          "stopped": "정지"
+        }
+      }
+    }
+  },
   "config": {
     "step": {
       "user": {

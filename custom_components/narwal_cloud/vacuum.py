@@ -21,6 +21,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import CONF_DEVICE_NAME, DOMAIN, NAME
 from .coordinator import NarwalCloudCoordinator
+from .sensor import battery_percentage
 
 
 async def async_setup_entry(
@@ -90,8 +91,7 @@ class NarwalCloudVacuum(CoordinatorEntity[NarwalCloudCoordinator], StateVacuumEn
 
     @property
     def battery_level(self) -> int | None:
-        value = self.coordinator.data["status"].get("battery_percentage")
-        return value if isinstance(value, int) else None
+        return battery_percentage(self.coordinator.data["status"])
 
     async def async_pause(self) -> None:
         """Pause the current Narwal task."""

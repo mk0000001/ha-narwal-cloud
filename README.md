@@ -5,8 +5,9 @@ Narwal Freo YJCC012에서 개발하고 검증했습니다.
 
 ## 주요 기능
 
-- 상태, 배터리, 일시정지, 재개, 중지, 충전대 복귀
-- 실시간 클라우드 맵, 현재 로봇 위치, 방 자동 인식 및 구역 청소
+- 배터리, 이동 상태, 청소 모드, 터보 모드 및 표준 로봇청소기 상태
+- 일시정지, 재개, 중지, 충전대 복귀
+- 드리미 호환 실시간 맵/맵 데이터, 현재 위치, 방 자동 인식 및 구역 청소
 - Freo Mind, 진공, 물걸레, 진공+물걸레, 진공 후 물걸레 모드
 - 흡입력, 물걸레 습도, 청소 횟수 설정
 - 물걸레 세척·건조 시작 및 종료
@@ -50,8 +51,9 @@ YJCC012.
 
 ## Features
 
-- State, battery, pause, resume, stop, and return-to-dock
-- Live cloud map, current robot position, room discovery, and segment cleaning
+- Battery, movement, cleaning, turbo, and standard vacuum states
+- Pause, resume, stop, and return-to-dock
+- Dreame-compatible live map/map data, position, rooms, and segment cleaning
 - Freo Mind, vacuum, mop, vacuum-and-mop, and vacuum-then-mop modes
 - Suction, mop humidity, and cleaning-cycle controls
 - Mop washing/drying start and finish controls

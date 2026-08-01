@@ -82,20 +82,49 @@ class NarwalCloudCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "consumables": consumables,
         }
 
-    async def _async_refresh_map_metadata(self) -> None:
+    async def _async_refresh_map_metadata(
+        self, refresh_plans: bool = True
+    ) -> None:
         """Refresh live map data without blocking core device polling."""
         try:
-            self.map_data = await self.client.async_get_map(
+            # These requests use the same MQTT client id, so they must remain
+            # sequential or the broker disconnects the first session.
+            map_data = await self.client.async_get_map(
                 self.device_id, self.product_id
             )
-            self.clean_plans = await self.client.async_get_clean_plans(
-                self.device_id, self.product_id
-            )
-            self._map_updated_at = datetime.now()
+            clean_plans = self.clean_plans
+            if refresh_plans or not clean_plans:
+                clean_plans = await self.client.async_get_clean_plans(
+                    self.device_id, self.product_id
+                )
+            self.map_data = map_data
+            self.clean_plans = clean_plans
+            self._map_updated_at = datetime.now().astimezone()
+            if self.data is not None:
+                self.async_set_updated_data(
+                    {
+                        **self.data,
+                        "map": self.map_data,
+                        "clean_plans": self.clean_plans,
+                    }
+                )
         except NarwalCloudError:
             # Status polling remains useful when the robot or broker
             # temporarily declines optional map metadata.
             _LOGGER.warning(
                 "Unable to refresh Narwal map metadata",
                 exc_info=True,
+            )
+
+    @property
+    def map_updated_at(self) -> datetime | None:
+        """Return the time the latest cloud map completed loading."""
+        return self._map_updated_at
+
+    def async_request_map_refresh(self) -> None:
+        """Schedule a map refresh without blocking a camera request."""
+        if self._map_refresh_task is None or self._map_refresh_task.done():
+            self._map_refresh_task = self.hass.async_create_task(
+                self._async_refresh_map_metadata(refresh_plans=False),
+                name=f"{DOMAIN}-map-camera-refresh",
             )
