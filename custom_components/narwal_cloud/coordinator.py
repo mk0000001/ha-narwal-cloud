@@ -60,7 +60,7 @@ class NarwalCloudCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             base_status = await self._async_get_base_status()
             consumables = await self._async_get_consumables()
             status = {**status, **base_status}
-            now = datetime.now()
+            now = datetime.now().astimezone()
             last_map_activity = self._map_updated_at or self._map_attempted_at
             if (
                 last_map_activity is None
