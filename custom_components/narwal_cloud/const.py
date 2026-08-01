@@ -25,4 +25,4 @@ CONF_CLIENT_UUID = "client_uuid"
 AUTH_METHOD_ACCOUNT = "account"
 AUTH_METHOD_TOKEN = "token"
 
-DEFAULT_SCAN_INTERVAL = timedelta(seconds=30)
+DEFAULT_SCAN_INTERVAL = timedelta(seconds=1)
