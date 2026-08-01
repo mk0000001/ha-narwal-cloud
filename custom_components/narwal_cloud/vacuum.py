@@ -9,6 +9,7 @@ from homeassistant.components.vacuum import (
     VacuumActivity,
     VacuumEntityFeature,
 )
+
 try:
     from homeassistant.components.vacuum import Segment
 except ImportError:
@@ -27,7 +28,6 @@ from .select import (
     MODE_OPTIONS,
     SUCTION_OPTIONS,
 )
-from .sensor import battery_percentage
 
 
 async def async_setup_entry(
@@ -46,7 +46,6 @@ class NarwalCloudVacuum(CoordinatorEntity[NarwalCloudCoordinator], StateVacuumEn
     _attr_name = None
     _attr_supported_features = (
         VacuumEntityFeature.STATE
-        | VacuumEntityFeature.BATTERY
         | VacuumEntityFeature.PAUSE
         | VacuumEntityFeature.START
         | VacuumEntityFeature.STOP
@@ -95,10 +94,6 @@ class NarwalCloudVacuum(CoordinatorEntity[NarwalCloudCoordinator], StateVacuumEn
         if status.get("free"):
             return VacuumActivity.IDLE
         return VacuumActivity.CLEANING
-
-    @property
-    def battery_level(self) -> int | None:
-        return battery_percentage(self.coordinator.data["status"])
 
     @property
     def fan_speed_list(self) -> list[str]:
@@ -157,6 +152,9 @@ class NarwalCloudVacuum(CoordinatorEntity[NarwalCloudCoordinator], StateVacuumEn
             suction=self.coordinator.suction_power,
             humidity=self.coordinator.mop_humidity,
             cycles=self.coordinator.cleaning_cycles,
+            room_templates=self.coordinator.room_templates_for_mode(
+                self.coordinator.cleaning_mode
+            ),
         )
         await self.coordinator.async_request_refresh()
 
@@ -173,6 +171,8 @@ class NarwalCloudVacuum(CoordinatorEntity[NarwalCloudCoordinator], StateVacuumEn
         """Expose saved-map rooms to Home Assistant's room picker."""
         if Segment is None:
             return []
+        if not self.coordinator.map_data.rooms:
+            await self.coordinator.async_refresh_rooms()
         return [
             Segment(id=str(room.room_id), name=room.name, group="Rooms")
             for room in self.coordinator.map_data.rooms
@@ -182,7 +182,19 @@ class NarwalCloudVacuum(CoordinatorEntity[NarwalCloudCoordinator], StateVacuumEn
         self, segment_ids: list[str], **kwargs: Any
     ) -> None:
         """Start cleaning only the selected map rooms."""
-        room_ids = [int(segment_id) for segment_id in segment_ids]
+        if not self.coordinator.map_data.rooms:
+            await self.coordinator.async_refresh_rooms()
+        available_ids = {room.room_id for room in self.coordinator.map_data.rooms}
+        room_ids: list[int] = []
+        for segment_id in segment_ids:
+            try:
+                room_id = int(segment_id)
+            except (TypeError, ValueError):
+                continue
+            if room_id in available_ids and room_id not in room_ids:
+                room_ids.append(room_id)
+        if not room_ids:
+            raise ValueError("No valid Narwal rooms were selected")
         await self.coordinator.client.async_send_task_command(
             self.coordinator.device_id,
             self.coordinator.product_id,
@@ -192,6 +204,9 @@ class NarwalCloudVacuum(CoordinatorEntity[NarwalCloudCoordinator], StateVacuumEn
             suction=self.coordinator.suction_power,
             humidity=self.coordinator.mop_humidity,
             cycles=self.coordinator.cleaning_cycles,
+            room_templates=self.coordinator.room_templates_for_mode(
+                self.coordinator.cleaning_mode
+            ),
         )
         await self.coordinator.async_request_refresh()
 

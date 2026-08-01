@@ -13,7 +13,11 @@ from typing import Any
 from aiohttp import ClientError, ClientSession
 
 from .const import API_BASE_URL, CLIENT_APPLICATION_ID, CLIENT_APP_VERSION, CLIENT_VERSION_CODE
-from .auth import NarwalCredentials
+from .auth import (
+    NarwalCredentials,
+    encrypt_account_password,
+    token_pair_from_payload,
+)
 from .mqtt import (
     NarwalMqttError,
     async_publish_task_command,
@@ -49,12 +53,16 @@ class NarwalCloudClient:
         refresh_token: str,
         client_uuid: str,
         on_token_update: TokenUpdateCallback | None = None,
+        email: str | None = None,
+        password: str | None = None,
     ) -> None:
         self._session = session
         self._credentials = NarwalCredentials(
             access_token, refresh_token, client_uuid
         )
         self._on_token_update = on_token_update
+        self._email = email
+        self._password = password
 
     @property
     def access_token(self) -> str:
@@ -153,17 +161,67 @@ class NarwalCloudClient:
                 response.raise_for_status()
                 payload = await response.json(content_type=None)
         except (ClientError, TimeoutError, ValueError) as err:
-            raise NarwalCloudAuthError("Narwal session needs to be connected again") from err
+            if self._email is not None and self._password is not None:
+                await self.async_login_with_email(self._email, self._password)
+                return
+            raise NarwalCloudAuthError(
+                "Narwal session needs to be connected again"
+            ) from err
 
-        result = payload.get("result") if isinstance(payload, dict) else None
-        token = result.get("token") if isinstance(result, dict) else None
-        refresh = result.get("refreshToken") if isinstance(result, dict) else None
-        if not isinstance(token, str) or not isinstance(refresh, str):
-            raise NarwalCloudAuthError("Narwal session needs to be connected again")
+        pair = token_pair_from_payload(payload) if isinstance(payload, dict) else None
+        if pair is None:
+            if self._email is not None and self._password is not None:
+                await self.async_login_with_email(self._email, self._password)
+                return
+            raise NarwalCloudAuthError(
+                "Narwal session needs to be connected again"
+            )
 
-        self._credentials.rotate(token, refresh)
+        await self._async_store_token_pair(*pair)
+
+    async def async_login_with_email(self, email: str, password: str) -> None:
+        """Create a Narwal app session from an email and password."""
+        encrypted_password = encrypt_account_password(password)
+        headers = self._headers()
+        headers.pop("auth-token", None)
+        headers.pop("authorization", None)
+        try:
+            async with self._session.post(
+                f"{API_BASE_URL}/user-authentication-server/v2/login/loginByEmail",
+                headers={
+                    **headers,
+                    "content-type": "application/json; charset=utf-8",
+                },
+                # The current app names the RSA ciphertext encrypted_password.
+                # password is included for compatibility with older regional
+                # gateways that used the earlier field name.
+                json={
+                    "email": email,
+                    "encrypted_password": encrypted_password,
+                    "password": encrypted_password,
+                },
+                timeout=20,
+            ) as response:
+                response.raise_for_status()
+                payload = await response.json(content_type=None)
+        except (ClientError, TimeoutError, ValueError) as err:
+            raise NarwalCloudAuthError("Unable to sign in to Narwal") from err
+
+        pair = token_pair_from_payload(payload) if isinstance(payload, dict) else None
+        if pair is None:
+            raise NarwalCloudAuthError("Narwal rejected the account login")
+
+        self._email = email
+        self._password = password
+        await self._async_store_token_pair(*pair)
+
+    async def _async_store_token_pair(
+        self, access_token: str, refresh_token: str
+    ) -> None:
+        """Rotate and persist a newly issued Narwal token pair."""
+        self._credentials.rotate(access_token, refresh_token)
         if self._on_token_update is not None:
-            await self._on_token_update(token, refresh)
+            await self._on_token_update(access_token, refresh_token)
 
     async def async_get_devices(self) -> list[dict[str, Any]]:
         """Return the account's bound Narwal devices."""
@@ -270,6 +328,7 @@ class NarwalCloudClient:
         suction: int = 2,
         humidity: int = 2,
         cycles: int = 1,
+        room_templates: dict[int, bytes] | None = None,
     ) -> None:
         """Send a captured task command through Narwal MQTT."""
         broker_url = await self.async_get_broker_url()
@@ -286,6 +345,7 @@ class NarwalCloudClient:
                 suction=suction,
                 humidity=humidity,
                 cycles=cycles,
+                room_templates=room_templates,
             )
         except NarwalMqttError as err:
             raise NarwalCloudError(str(err)) from err
@@ -296,6 +356,8 @@ class NarwalCloudClient:
         """Return the robot's current saved map and room metadata."""
         broker_url = await self.async_get_broker_url()
         try:
+            # An already-online robot answers the focused request reliably and
+            # avoids activation broadcasts racing the map response.
             async with asyncio.timeout(20):
                 payload = await async_request(
                     broker_url,
@@ -305,11 +367,27 @@ class NarwalCloudClient:
                     device_id,
                     "map/get_map",
                     b"\x08\x00\x10\x00",
-                    activate_robot=True,
                 )
-            return parse_map_response(payload)
         except (NarwalMqttError, TimeoutError, ValueError) as err:
-            raise NarwalCloudError("Unable to read the Narwal map") from err
+            try:
+                # Sleeping older Freo firmware needs the official app-style
+                # activation burst before it will answer the same request.
+                async with asyncio.timeout(60):
+                    payload = await async_request(
+                        broker_url,
+                        self.access_token,
+                        self.client_uuid,
+                        product_id,
+                        device_id,
+                        "map/get_map",
+                        b"\x08\x00\x10\x00",
+                        activate_robot=True,
+                    )
+            except (NarwalMqttError, TimeoutError, ValueError) as retry_err:
+                raise NarwalCloudError(
+                    "Unable to read the Narwal map"
+                ) from retry_err
+        return parse_map_response(payload)
 
     async def async_get_clean_plans(
         self, device_id: str, product_id: str
@@ -317,7 +395,7 @@ class NarwalCloudClient:
         """Return the five cleaning plans configured by the official app."""
         broker_url = await self.async_get_broker_url()
         try:
-            async with asyncio.timeout(20):
+            async with asyncio.timeout(60):
                 payload = await async_request(
                     broker_url,
                     self.access_token,

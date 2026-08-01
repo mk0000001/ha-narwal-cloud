@@ -69,6 +69,7 @@ def _easy_clean_body(
     suction: int = 2,
     humidity: int = 2,
     cycles: int = 1,
+    room_templates: dict[int, bytes] | None = None,
 ) -> bytes:
     """Build a room plan using fields verified against all five app modes."""
     if mode not in range(1, 6):
@@ -80,6 +81,9 @@ def _easy_clean_body(
 
     body = _protobuf_varint(1, mode) + _protobuf_varint(2, 1)
     for room_id in room_ids:
+        if mode == 1 and room_templates and room_id in room_templates:
+            body += _protobuf_message(3, room_templates[room_id])
+            continue
         room = _protobuf_varint(1, room_id)
         if mode == 1:
             settings = (
@@ -521,6 +525,7 @@ async def async_publish_task_command(
     suction: int = 2,
     humidity: int = 2,
     cycles: int = 1,
+    room_templates: dict[int, bytes] | None = None,
 ) -> None:
     """Publish one captured task command using a short-lived MQTT session."""
     if action not in {
@@ -537,7 +542,12 @@ async def async_publish_task_command(
     if action == "easy_clean_start":
         topic_suffix = "clean/easy_clean/start"
         command_body = _easy_clean_body(
-            room_ids or [], mode, suction, humidity, cycles
+            room_ids or [],
+            mode,
+            suction,
+            humidity,
+            cycles,
+            room_templates,
         )
     elif action == "force_end":
         topic_suffix = "task/force_end"

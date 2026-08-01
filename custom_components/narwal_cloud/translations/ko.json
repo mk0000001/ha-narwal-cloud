@@ -1,43 +1,25 @@
 {
   "entity": {
-    "binary_sensor": {
-      "turbo_mode": {
-        "name": "터보 모드"
-      }
-    },
+    "binary_sensor": { "turbo_mode": { "name": "터보 모드" } },
     "camera": {
-      "map": {
-        "name": "지도"
-      },
-      "map_data": {
-        "name": "지도 데이터"
-      }
+      "map": { "name": "지도" },
+      "map_data": { "name": "지도 데이터" }
     },
     "sensor": {
-      "battery": {
-        "name": "배터리"
-      },
+      "battery": { "name": "배터리" },
       "movement_status": {
         "name": "이동 상태",
         "state": {
-          "charging": "충전 중",
-          "cleaning": "청소 중",
-          "docked": "충전대에 있음",
-          "error": "오류",
-          "idle": "대기 중",
-          "paused": "일시 정지",
-          "returning": "충전대로 복귀 중",
-          "station_work": "스테이션 작업 중"
+          "charging": "충전 중", "cleaning": "청소 중", "docked": "충전대에 있음",
+          "error": "오류", "idle": "대기 중", "paused": "일시 정지",
+          "returning": "충전대로 복귀 중", "station_work": "스테이션 작업 중"
         }
       },
       "cleaning_status": {
-        "name": "청소 모드",
+        "name": "청소 상태",
         "state": {
-          "cleaning": "청소 중",
-          "error": "오류",
-          "paused": "일시 정지",
-          "returning": "복귀 중",
-          "station_work": "물걸레 세척/건조 중",
+          "cleaning": "청소 중", "error": "오류", "paused": "일시 정지",
+          "returning": "복귀 중", "station_work": "물걸레 세척/건조 중",
           "stopped": "정지"
         }
       }
@@ -47,20 +29,43 @@
     "step": {
       "user": {
         "title": "Narwal Cloud 연결",
-        "description": "Narwal 앱에서 발급된 액세스 토큰과 갱신 토큰을 입력하세요. 두 값은 Home Assistant에 안전하게 저장되며 통합 소스나 로그에 기록되지 않습니다. [토큰 구하는 방법]({token_guide_url})",
-        "data": {
-          "access_token": "Narwal 액세스 토큰",
-          "refresh_token": "Narwal 갱신 토큰"
+        "menu_options": {
+          "account": "나르왈 계정으로 로그인(권장)",
+          "token": "앱 토큰 직접 입력"
         }
+      },
+      "account": {
+        "title": "Narwal Cloud 로그인",
+        "description": "나르왈 앱에 등록한 이메일과 비밀번호를 입력하세요. 계정 정보는 Home Assistant의 로컬 구성 항목에만 저장되며 통합 로그나 GitHub에는 기록되지 않습니다.",
+        "data": { "email": "나르왈 계정 이메일", "password": "나르왈 계정 비밀번호" }
+      },
+      "token": {
+        "title": "앱 토큰으로 연결",
+        "description": "나르왈 앱에서 추출한 액세스 토큰과 갱신 토큰을 입력하세요. [토큰 구하는 방법]({token_guide_url})",
+        "data": { "access_token": "나르왈 액세스 토큰", "refresh_token": "나르왈 갱신 토큰" }
+      },
+      "reconfigure": {
+        "title": "계정 자동 로그인으로 전환",
+        "description": "이 로봇을 소유하거나 공유 초대받은 나르왈 계정을 입력하세요. 이후 토큰이 자동으로 갱신됩니다.",
+        "data": { "email": "나르왈 계정 이메일", "password": "나르왈 계정 비밀번호" }
+      },
+      "reauth_confirm": {
+        "title": "Narwal Cloud 다시 연결",
+        "description": "저장된 세션을 갱신하지 못했습니다. 나르왈 계정 정보를 다시 입력하세요.",
+        "data": { "email": "나르왈 계정 이메일", "password": "나르왈 계정 비밀번호" }
       }
     },
     "error": {
-      "cannot_connect": "Narwal Cloud에 연결하지 못했습니다. 토큰을 확인하고 다시 시도하세요.",
-      "no_devices": "이 계정에 연결된 Narwal 로봇이 없습니다.",
-      "invalid_response": "Narwal Cloud 응답에 기기 정보가 없습니다."
+      "cannot_connect": "Narwal Cloud에 연결할 수 없습니다. 잠시 후 다시 시도하세요.",
+      "invalid_auth": "나르왈에서 이메일 또는 비밀번호를 거부했습니다.",
+      "device_not_found": "이 계정에서 기존 로봇을 찾지 못했습니다. 먼저 메인 나르왈 계정에서 이 계정을 사용자로 초대하세요."
     },
     "abort": {
-      "already_configured": "이 Narwal 로봇은 이미 구성되어 있습니다."
+      "already_configured": "이 나르왈 로봇은 이미 구성되어 있습니다.",
+      "no_devices": "이 계정에 연결되거나 공유된 나르왈 로봇이 없습니다.",
+      "invalid_response": "Narwal Cloud 응답에 기기 정보가 없습니다.",
+      "reauth_successful": "Narwal Cloud를 다시 연결했습니다.",
+      "reconfigure_successful": "나르왈 계정 자동 로그인을 활성화했습니다."
     }
   }
 }
