@@ -1,22 +1,14 @@
 {
   "entity": {
     "binary_sensor": {
-      "turbo_mode": {
-        "name": "Turbo mode"
-      }
+      "turbo_mode": { "name": "Turbo mode" }
     },
     "camera": {
-      "map": {
-        "name": "Map"
-      },
-      "map_data": {
-        "name": "Map data"
-      }
+      "map": { "name": "Map" },
+      "map_data": { "name": "Map data" }
     },
     "sensor": {
-      "battery": {
-        "name": "Battery"
-      },
+      "battery": { "name": "Battery" },
       "movement_status": {
         "name": "Movement status",
         "state": {
@@ -47,20 +39,55 @@
     "step": {
       "user": {
         "title": "Connect Narwal Cloud",
-        "description": "Enter the access and refresh tokens from the Narwal app. Both fields are stored securely in Home Assistant and are never included in this integration's source or logs. [How to obtain tokens]({token_guide_url})",
+        "menu_options": {
+          "account": "Sign in with a Narwal account (recommended)",
+          "token": "Enter app tokens manually"
+        }
+      },
+      "account": {
+        "title": "Sign in to Narwal Cloud",
+        "description": "Use the email and password registered in the Narwal app. Credentials stay only in your Home Assistant config entry and are never written to integration logs or GitHub.",
+        "data": {
+          "email": "Narwal account email",
+          "password": "Narwal account password"
+        }
+      },
+      "token": {
+        "title": "Connect with app tokens",
+        "description": "Enter the access and refresh tokens extracted from the Narwal app. [How to obtain tokens]({token_guide_url})",
         "data": {
           "access_token": "Narwal access token",
           "refresh_token": "Narwal refresh token"
         }
+      },
+      "reconfigure": {
+        "title": "Switch to automatic account login",
+        "description": "Enter the Narwal account that owns or has been invited to this robot. This replaces manual token management.",
+        "data": {
+          "email": "Narwal account email",
+          "password": "Narwal account password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reconnect Narwal Cloud",
+        "description": "The saved Narwal session could not be renewed. Enter the account credentials again.",
+        "data": {
+          "email": "Narwal account email",
+          "password": "Narwal account password"
+        }
       }
     },
     "error": {
-      "cannot_connect": "Unable to connect to Narwal Cloud. Check the tokens and try again.",
-      "no_devices": "No Narwal robot is linked to this account.",
-      "invalid_response": "Narwal Cloud returned incomplete device information."
+      "cannot_connect": "Unable to connect to Narwal Cloud. Try again later.",
+      "invalid_auth": "Narwal rejected the email or password.",
+      "device_not_found": "This account cannot access the previously configured robot. Invite this account from the main Narwal account first."
     },
     "abort": {
-      "already_configured": "This Narwal robot is already configured."
+      "already_configured": "This Narwal robot is already configured.",
+      "no_devices": "No Narwal robot is linked or shared with this account.",
+      "invalid_response": "Narwal Cloud returned incomplete device information.",
+      "reauth_successful": "Narwal Cloud was reconnected successfully.",
+      "reconfigure_successful": "Automatic Narwal account login is now enabled."
     }
   }
 }

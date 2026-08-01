@@ -15,7 +15,7 @@ from .api import NarwalCloudAuthError, NarwalCloudClient, NarwalCloudError
 from .const import DEFAULT_SCAN_INTERVAL, DOMAIN
 from .protocol import NarwalCleanPlan, NarwalMap
 
-MAP_REFRESH_INTERVAL = timedelta(minutes=1)
+MAP_REFRESH_INTERVAL = timedelta(minutes=5)
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -41,6 +41,7 @@ class NarwalCloudCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.map_data = NarwalMap()
         self.clean_plans: tuple[NarwalCleanPlan, ...] = ()
         self._map_updated_at: datetime | None = None
+        self._map_attempted_at: datetime | None = None
         self._map_refresh_task: asyncio.Task[None] | None = None
         self.cleaning_mode = 1
         self.suction_power = 2
@@ -59,10 +60,11 @@ class NarwalCloudCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             base_status = await self._async_get_base_status()
             consumables = await self._async_get_consumables()
             status = {**status, **base_status}
-            now = datetime.now()
+            now = datetime.now().astimezone()
+            last_map_activity = self._map_updated_at or self._map_attempted_at
             if (
-                self._map_updated_at is None
-                or now - self._map_updated_at >= MAP_REFRESH_INTERVAL
+                last_map_activity is None
+                or now - last_map_activity >= MAP_REFRESH_INTERVAL
             ):
                 if (
                     self._map_refresh_task is None
@@ -119,6 +121,7 @@ class NarwalCloudCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self, refresh_plans: bool = True
     ) -> None:
         """Refresh live map data without blocking core device polling."""
+        self._map_attempted_at = datetime.now().astimezone()
         try:
             # These requests use the same MQTT client id, so they must remain
             # sequential or the broker disconnects the first session.
@@ -144,10 +147,7 @@ class NarwalCloudCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except NarwalCloudError:
             # Status polling remains useful when the robot or broker
             # temporarily declines optional map metadata.
-            _LOGGER.warning(
-                "Unable to refresh Narwal map metadata",
-                exc_info=True,
-            )
+            _LOGGER.debug("Narwal map is temporarily unavailable", exc_info=True)
 
     @property
     def map_updated_at(self) -> datetime | None:
@@ -161,3 +161,15 @@ class NarwalCloudCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._async_refresh_map_metadata(refresh_plans=False),
                 name=f"{DOMAIN}-map-camera-refresh",
             )
+
+    async def async_refresh_rooms(self) -> None:
+        """Refresh map rooms and official per-room cleaning templates."""
+        if self._map_refresh_task is not None and not self._map_refresh_task.done():
+            await self._map_refresh_task
+            return
+        await self._async_refresh_map_metadata(refresh_plans=True)
+
+    def room_templates_for_mode(self, mode: int) -> dict[int, bytes]:
+        """Return exact official room templates for a cleaning mode."""
+        plan = next((plan for plan in self.clean_plans if plan.mode == mode), None)
+        return dict(plan.room_templates) if plan is not None else {}
