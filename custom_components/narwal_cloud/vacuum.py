@@ -21,6 +21,12 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import CONF_DEVICE_NAME, DOMAIN, NAME
 from .coordinator import NarwalCloudCoordinator
+from .select import (
+    CYCLE_OPTIONS,
+    HUMIDITY_OPTIONS,
+    MODE_OPTIONS,
+    SUCTION_OPTIONS,
+)
 from .sensor import battery_percentage
 
 
@@ -45,6 +51,7 @@ class NarwalCloudVacuum(CoordinatorEntity[NarwalCloudCoordinator], StateVacuumEn
         | VacuumEntityFeature.START
         | VacuumEntityFeature.STOP
         | VacuumEntityFeature.RETURN_HOME
+        | VacuumEntityFeature.FAN_SPEED
     ) | (
         VacuumEntityFeature.CLEAN_AREA
         if Segment is not None
@@ -92,6 +99,30 @@ class NarwalCloudVacuum(CoordinatorEntity[NarwalCloudCoordinator], StateVacuumEn
     @property
     def battery_level(self) -> int | None:
         return battery_percentage(self.coordinator.data["status"])
+
+    @property
+    def fan_speed_list(self) -> list[str]:
+        """Expose suction settings inside the standard vacuum entity."""
+        return list(SUCTION_OPTIONS)
+
+    @property
+    def fan_speed(self) -> str | None:
+        return next(
+            (
+                name
+                for name, value in SUCTION_OPTIONS.items()
+                if value == self.coordinator.suction_power
+            ),
+            None,
+        )
+
+    async def async_set_fan_speed(
+        self, fan_speed: str, **kwargs: Any
+    ) -> None:
+        """Set suction power for the next cleaning task."""
+        self.coordinator.suction_power = SUCTION_OPTIONS[fan_speed]
+        self.async_write_ha_state()
+        self.coordinator.async_update_listeners()
 
     async def async_pause(self) -> None:
         """Pause the current Narwal task."""
@@ -185,6 +216,18 @@ class NarwalCloudVacuum(CoordinatorEntity[NarwalCloudCoordinator], StateVacuumEn
             "station_work": status.get("station_work"),
             "fault": status.get("fault"),
             "fault_code": status.get("fault_code"),
+            "cleaning_mode": _option_name(
+                MODE_OPTIONS, self.coordinator.cleaning_mode
+            ),
+            "suction_power": _option_name(
+                SUCTION_OPTIONS, self.coordinator.suction_power
+            ),
+            "mop_humidity": _option_name(
+                HUMIDITY_OPTIONS, self.coordinator.mop_humidity
+            ),
+            "cleaning_cycles": _option_name(
+                CYCLE_OPTIONS, self.coordinator.cleaning_cycles
+            ),
             "rooms": {
                 str(room.room_id): room.name
                 for room in self.coordinator.map_data.rooms
@@ -202,3 +245,10 @@ class NarwalCloudVacuum(CoordinatorEntity[NarwalCloudCoordinator], StateVacuumEn
                 else None
             ),
         }
+
+
+def _option_name(options: dict[str, int], value: int) -> str | None:
+    return next(
+        (name for name, option_value in options.items() if option_value == value),
+        None,
+    )

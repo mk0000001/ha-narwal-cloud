@@ -10,6 +10,7 @@ Narwal Freo YJCC012에서 개발하고 검증했습니다.
 - 드리미 호환 실시간 맵/맵 데이터, 현재 위치, 방 자동 인식 및 구역 청소
 - Freo Mind, 진공, 물걸레, 진공+물걸레, 진공 후 물걸레 모드
 - 흡입력, 물걸레 습도, 청소 횟수 설정
+- 로봇청소기 기본 객체 안의 표준 흡입력(fan speed) 제어
 - 물걸레 세척·건조 시작 및 종료
 - 필터, 물걸레, 사이드 브러시, 스펀지, 메인 브러시 소모율
 - 액세스 토큰 자동 갱신
@@ -56,6 +57,7 @@ YJCC012.
 - Dreame-compatible live map/map data, position, rooms, and segment cleaning
 - Freo Mind, vacuum, mop, vacuum-and-mop, and vacuum-then-mop modes
 - Suction, mop humidity, and cleaning-cycle controls
+- Standard suction/fan-speed control inside the vacuum entity
 - Mop washing/drying start and finish controls
 - Consumable remaining time and percentage
 - Automatic access-token refresh
