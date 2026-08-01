@@ -21,8 +21,11 @@ CONF_DEVICE_ID = "device_id"
 CONF_PRODUCT_ID = "product_id"
 CONF_DEVICE_NAME = "device_name"
 CONF_CLIENT_UUID = "client_uuid"
+CONF_SCAN_INTERVAL = "scan_interval"
 
 AUTH_METHOD_ACCOUNT = "account"
 AUTH_METHOD_TOKEN = "token"
 
 DEFAULT_SCAN_INTERVAL = timedelta(seconds=1)
+MIN_SCAN_INTERVAL_SECONDS = 1
+MAX_SCAN_INTERVAL_SECONDS = 300

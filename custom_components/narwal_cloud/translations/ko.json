@@ -67,5 +67,14 @@
       "reauth_successful": "Narwal Cloud를 다시 연결했습니다.",
       "reconfigure_successful": "나르왈 계정 자동 로그인을 활성화했습니다."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "상태 갱신 주기",
+        "description": "Home Assistant가 나르왈의 최신 상태를 요청하는 주기를 설정합니다. 기본값과 최솟값은 1초입니다. 클라우드와 네트워크 사용량을 줄이려면 값을 늘리세요.",
+        "data": { "scan_interval": "갱신 주기(초)" }
+      }
+    }
   }
 }

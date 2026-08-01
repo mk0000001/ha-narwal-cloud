@@ -14,6 +14,7 @@ YJCC012에서 개발하고 검증했습니다.
 - 흡입력, 물걸레 습도, 청소 횟수 설정
 - 물걸레 세척/건조 시작과 종료
 - 필터, 물걸레, 사이드 브러시, 스펀지, 메인 브러시 소모품 시간
+- 기본 1초 상태 갱신과 1~300초 사용자 지정 폴링 주기
 
 ## HACS 설치
 
@@ -27,6 +28,9 @@ YJCC012에서 개발하고 검증했습니다.
 기존에 토큰으로 설치한 항목은 통합 항목의 **재구성**을 눌러 계정 자동 로그인으로
 전환할 수 있습니다. 토큰 방식이 필요한 경우 [토큰 구하는 방법](docs/token_setup.md)을
 참고하세요.
+
+통합 항목의 **구성**에서 상태 갱신 주기를 1~300초로 변경할 수 있습니다. 기본값은
+1초이며 클라우드 또는 네트워크 사용량을 줄이려면 값을 늘리세요.
 
 ## 계정과 보안
 
@@ -59,6 +63,7 @@ developed and verified with the Narwal Freo YJCC012.
 - Suction, mop humidity, and cleaning-cycle controls
 - Mop washing/drying start and finish controls
 - Consumable remaining-time sensors
+- One-second default polling, configurable from 1 to 300 seconds
 
 ## Installation
 
@@ -67,6 +72,9 @@ Add `https://github.com/mk0000001/ha-narwal-cloud` to HACS as a custom
 **Narwal Cloud (unofficial)** from **Settings → Devices & services**. Account
 login is recommended. Existing token-based entries can use **Reconfigure** to
 switch to automatic account login.
+
+Use **Configure** on the integration entry to change the polling interval from
+1 to 300 seconds. The default is 1 second.
 
 Credentials remain in the local Home Assistant config entry and are never
 written to this repository, diagnostics, or integration logs. Anyone with
