@@ -51,6 +51,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: NarwalCloudConfigEntry) 
         entry,
         [
             Platform.VACUUM,
+            Platform.BINARY_SENSOR,
             Platform.SELECT,
             Platform.BUTTON,
             Platform.CAMERA,
@@ -66,6 +67,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: NarwalCloudConfigEntry)
         entry,
         [
             Platform.VACUUM,
+            Platform.BINARY_SENSOR,
             Platform.SELECT,
             Platform.BUTTON,
             Platform.CAMERA,

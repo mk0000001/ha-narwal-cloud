@@ -1,11 +1,45 @@
 {
   "entity": {
+    "binary_sensor": {
+      "turbo_mode": {
+        "name": "Turbo mode"
+      }
+    },
     "camera": {
       "map": {
         "name": "Map"
       },
       "map_data": {
         "name": "Map data"
+      }
+    },
+    "sensor": {
+      "battery": {
+        "name": "Battery"
+      },
+      "movement_status": {
+        "name": "Movement status",
+        "state": {
+          "charging": "Charging",
+          "cleaning": "Cleaning",
+          "docked": "Docked",
+          "error": "Error",
+          "idle": "Idle",
+          "paused": "Paused",
+          "returning": "Returning to dock",
+          "station_work": "Working at station"
+        }
+      },
+      "cleaning_status": {
+        "name": "Cleaning mode",
+        "state": {
+          "cleaning": "Cleaning",
+          "error": "Error",
+          "paused": "Paused",
+          "returning": "Returning to dock",
+          "station_work": "Mop washing/drying",
+          "stopped": "Stopped"
+        }
       }
     }
   },

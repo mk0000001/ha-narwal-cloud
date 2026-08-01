@@ -87,4 +87,5 @@ class NarwalOptionSelect(CoordinatorEntity[NarwalCloudCoordinator], SelectEntity
     async def async_select_option(self, option: str) -> None:
         setattr(self.coordinator, self._key, self._mapping[option])
         self.async_write_ha_state()
+        self.coordinator.async_update_listeners()
 
