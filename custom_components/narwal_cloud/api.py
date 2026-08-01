@@ -128,6 +128,15 @@ class NarwalCloudClient:
 
         if not isinstance(payload, dict):
             raise NarwalCloudError("Narwal returned an invalid response")
+        code = payload.get("code")
+        message = payload.get("msg") or payload.get("message")
+        if code == -1 and isinstance(message, str) and "token" in message.lower():
+            if retry_auth:
+                await self.async_refresh_token()
+                return await self._request(
+                    method, path, params=params, json=json, retry_auth=False
+                )
+            raise NarwalCloudAuthError("Narwal rejected the access token")
         if payload.get("success") is False:
             raise NarwalCloudError("Narwal API request failed")
         return payload
