@@ -8,6 +8,7 @@ import zlib
 
 from homeassistant.components.camera import Camera
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import STATE_IDLE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import EntityCategory
@@ -51,7 +52,7 @@ class NarwalMapCamera(CoordinatorEntity[NarwalCloudCoordinator], Camera):
         self._map_data_json = map_data_json
         key = "map_data" if map_data_json else "map"
         self._attr_unique_id = f"{coordinator.device_id}_{key}"
-        self._attr_name = None
+        self._attr_name = "Map data" if map_data_json else "Map"
         self._attr_translation_key = key
         if map_data_json:
             self._attr_entity_category = EntityCategory.CONFIG
@@ -97,14 +98,14 @@ class NarwalMapCamera(CoordinatorEntity[NarwalCloudCoordinator], Camera):
         return self._cached_image or None
 
     @property
-    def state(self) -> datetime | None:
+    def state(self) -> datetime | str:
         """Return the current map frame time like the Dreame camera."""
         timestamp = self.coordinator.map_data.robot_pose_update_time
         if timestamp:
             if timestamp > 10_000_000_000:
                 timestamp /= 1000
             return datetime.fromtimestamp(timestamp, tz=timezone.utc)
-        return self.coordinator.map_updated_at
+        return self.coordinator.map_updated_at or STATE_IDLE
 
     @property
     def extra_state_attributes(self) -> dict | None:

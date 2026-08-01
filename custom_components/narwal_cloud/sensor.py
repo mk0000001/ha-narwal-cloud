@@ -170,6 +170,8 @@ class NarwalConsumableSensor(
     """Remaining replacement time for one consumable."""
 
     _attr_has_entity_name = True
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_icon = "mdi:timer-outline"
     _attr_native_unit_of_measurement = UnitOfTime.HOURS
     _attr_state_class = SensorStateClass.MEASUREMENT
 

@@ -223,6 +223,7 @@ async def _async_request_sequence(
     product_id: str,
     device_id: str,
     requests: tuple[tuple[str, bytes, bool], ...],
+    capture_topic_suffix: str | None = None,
 ) -> tuple[bytes, ...]:
     """Publish requests in order over one MQTT session."""
     parsed = urlparse(broker_url)
@@ -398,6 +399,28 @@ async def _async_request_sequence(
                     break
             responses.append(_mqtt_publish_payload(response_packet))
 
+        if capture_topic_suffix:
+            capture_topic = (
+                f"/{product_id}/{device_id}/{capture_topic_suffix}"
+            )
+            stage = f"{capture_topic_suffix} broadcast"
+            while True:
+                packet_type = (
+                    await asyncio.wait_for(reader.readexactly(1), timeout=15)
+                )[0] >> 4
+                remaining = await asyncio.wait_for(
+                    _read_varint(reader), timeout=15
+                )
+                packet = await asyncio.wait_for(
+                    reader.readexactly(remaining), timeout=15
+                )
+                if (
+                    packet_type == 3
+                    and _mqtt_publish_topic(packet) == capture_topic
+                ):
+                    responses.append(_mqtt_publish_payload(packet))
+                    break
+
         return tuple(responses)
     except (OSError, TimeoutError, asyncio.IncompleteReadError) as err:
         raise NarwalMqttError(
@@ -459,6 +482,30 @@ async def async_request(
         command_body,
         response_required=response_required,
     )
+
+
+async def async_request_base_status(
+    broker_url: str,
+    access_token: str,
+    client_uuid: str,
+    product_id: str,
+    device_id: str,
+) -> bytes:
+    """Request and capture the robot's asynchronous base-status broadcast."""
+    responses = await _async_request_sequence(
+        broker_url,
+        access_token,
+        client_uuid,
+        product_id,
+        device_id,
+        (
+            ("common/active_robot_publish", _active_robot_body(), True),
+            ("common/notify_app_event", b"\x08\x01", True),
+            ("status/get_device_base_status", b"", True),
+        ),
+        capture_topic_suffix="status/robot_base_status",
+    )
+    return responses[-1]
 
 
 async def async_publish_task_command(

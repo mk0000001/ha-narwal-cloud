@@ -49,11 +49,13 @@ class NarwalCloudCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
-            device, status, consumables = await asyncio.gather(
+            device, status, base_status, consumables = await asyncio.gather(
                 self.client.async_get_device_info(self.device_id, self.product_id),
                 self.client.async_get_work_status(self.device_id, self.product_id),
+                self._async_get_base_status(),
                 self.client.async_get_consumables(self.device_id, self.product_id),
             )
+            status = {**status, **base_status}
             now = datetime.now()
             if (
                 self._map_updated_at is None
@@ -81,6 +83,19 @@ class NarwalCloudCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "clean_plans": self.clean_plans,
             "consumables": consumables,
         }
+
+    async def _async_get_base_status(self) -> dict[str, int]:
+        """Read optional live battery data without failing core polling."""
+        try:
+            return await self.client.async_get_base_status(
+                self.device_id, self.product_id
+            )
+        except NarwalCloudError:
+            _LOGGER.warning(
+                "Unable to refresh Narwal battery status",
+                exc_info=True,
+            )
+            return {}
 
     async def _async_refresh_map_metadata(
         self, refresh_plans: bool = True

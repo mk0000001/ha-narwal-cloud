@@ -252,6 +252,21 @@ def parse_map_response(payload: bytes) -> NarwalMap:
     )
 
 
+def parse_base_status_response(payload: bytes) -> dict[str, int]:
+    """Parse the verified battery field from robot_base_status.
+
+    YJCC012 publishes the battery percentage as protobuf fixed32 float field
+    2 on the asynchronous ``status/robot_base_status`` broadcast.
+    """
+    fields = decode_fields(payload)
+    if not _values(fields, 2, 5):
+        raise ValueError("Narwal battery field is missing")
+    battery = round(_fixed32_float(fields, 2))
+    if not 0 <= battery <= 100:
+        raise ValueError("Narwal returned an invalid battery percentage")
+    return {"battery_percentage": battery}
+
+
 def parse_clean_plans_response(payload: bytes) -> tuple[NarwalCleanPlan, ...]:
     """Parse official cleaning-plan room templates.
 
