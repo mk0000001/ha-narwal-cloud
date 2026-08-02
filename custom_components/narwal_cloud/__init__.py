@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Mapping
+from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
@@ -19,6 +20,8 @@ from .const import (
     CONF_PASSWORD,
     CONF_PRODUCT_ID,
     CONF_REFRESH_TOKEN,
+    CONF_SCAN_INTERVAL,
+    DEFAULT_SCAN_INTERVAL,
     DOMAIN,
 )
 from .coordinator import NarwalCloudCoordinator
@@ -52,7 +55,16 @@ async def async_setup_entry(
         password=data.get(CONF_PASSWORD),
     )
     coordinator = NarwalCloudCoordinator(
-        hass, client, data[CONF_DEVICE_ID], data[CONF_PRODUCT_ID]
+        hass,
+        client,
+        data[CONF_DEVICE_ID],
+        data[CONF_PRODUCT_ID],
+        timedelta(
+            seconds=entry.options.get(
+                CONF_SCAN_INTERVAL,
+                DEFAULT_SCAN_INTERVAL.total_seconds(),
+            )
+        ),
     )
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator

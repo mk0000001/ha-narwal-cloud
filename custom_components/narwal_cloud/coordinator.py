@@ -28,12 +28,13 @@ class NarwalCloudCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         client: NarwalCloudClient,
         device_id: str,
         product_id: str,
+        scan_interval: timedelta = DEFAULT_SCAN_INTERVAL,
     ) -> None:
         super().__init__(
             hass,
             logger=logging.getLogger(__name__),
             name=DOMAIN,
-            update_interval=DEFAULT_SCAN_INTERVAL,
+            update_interval=scan_interval,
         )
         self.client = client
         self.device_id = device_id

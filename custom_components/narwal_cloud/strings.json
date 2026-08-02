@@ -89,5 +89,16 @@
       "reauth_successful": "Narwal Cloud was reconnected successfully.",
       "reconfigure_successful": "Automatic Narwal account login is now enabled."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Polling interval",
+        "description": "Choose how often Home Assistant requests the latest Narwal state. The default and minimum is 1 second. Increase it to reduce cloud and network traffic.",
+        "data": {
+          "scan_interval": "Polling interval (seconds)"
+        }
+      }
+    }
   }
 }
