@@ -7,13 +7,21 @@ from datetime import timedelta
 DOMAIN = "narwal_cloud"
 NAME = "Narwal"
 
-API_BASE_URL = "https://kr-app.narwaltech.com"
+DEFAULT_COUNTRY = "KR"
+REGIONAL_API_BASE_URLS: dict[str, str] = {
+    "KR": "https://kr-app.narwaltech.com",
+    "US": "https://us-app.narwaltech.com",
+    "EU": "https://eu-app.narwaltech.com",
+    "DE": "https://de-app.narwaltech.com",
+}
+API_BASE_URL = REGIONAL_API_BASE_URLS[DEFAULT_COUNTRY]
 CLIENT_APPLICATION_ID = "2E3t5It3Dr"
 CLIENT_APP_VERSION = "2.7.03"
 CLIENT_VERSION_CODE = "175"
 
 CONF_ACCESS_TOKEN = "access_token"
 CONF_AUTH_METHOD = "auth_method"
+CONF_COUNTRY = "country"
 CONF_REFRESH_TOKEN = "refresh_token"
 CONF_EMAIL = "email"
 CONF_PASSWORD = "password"

@@ -12,6 +12,17 @@ class NarwalMqttError(Exception):
     """The Narwal broker rejected or failed a command connection."""
 
 
+_SSL_CONTEXT: ssl.SSLContext | None = None
+
+
+async def _async_get_ssl_context() -> ssl.SSLContext:
+    """Create and cache the default TLS context outside the event loop."""
+    global _SSL_CONTEXT
+    if _SSL_CONTEXT is None:
+        _SSL_CONTEXT = await asyncio.to_thread(ssl.create_default_context)
+    return _SSL_CONTEXT
+
+
 def _varint(value: int) -> bytes:
     output = bytearray()
     while True:
@@ -249,7 +260,7 @@ async def _async_request_sequence(
     connect_body = connect_variable + connect_payload
     connect_packet = b"\x10" + _varint(len(connect_body)) + connect_body
 
-    context = ssl.create_default_context()
+    context = await _async_get_ssl_context()
     writer: asyncio.StreamWriter | None = None
     stage = "connect"
     try:

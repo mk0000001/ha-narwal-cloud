@@ -15,6 +15,7 @@ from .api import NarwalCloudClient
 from .const import (
     CONF_ACCESS_TOKEN,
     CONF_CLIENT_UUID,
+    CONF_COUNTRY,
     CONF_DEVICE_ID,
     CONF_EMAIL,
     CONF_PASSWORD,
@@ -40,6 +41,7 @@ async def async_setup_entry(
             entry,
             data={
                 **entry.data,
+                CONF_COUNTRY: client.country,
                 CONF_ACCESS_TOKEN: access_token,
                 CONF_REFRESH_TOKEN: refresh_token,
             },
@@ -53,6 +55,7 @@ async def async_setup_entry(
         on_token_update=_store_tokens,
         email=data.get(CONF_EMAIL),
         password=data.get(CONF_PASSWORD),
+        country=data.get(CONF_COUNTRY),
     )
     coordinator = NarwalCloudCoordinator(
         hass,
@@ -67,6 +70,14 @@ async def async_setup_entry(
         ),
     )
     await coordinator.async_config_entry_first_refresh()
+    if entry.data.get(CONF_COUNTRY) != client.country:
+        hass.config_entries.async_update_entry(
+            entry,
+            data={
+                **entry.data,
+                CONF_COUNTRY: client.country,
+            },
+        )
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(
         entry,

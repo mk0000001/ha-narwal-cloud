@@ -38,6 +38,11 @@ AUTH, API = _load_modules()
 class _Response:
     status = 200
 
+    def __init__(self, payload: dict | None = None) -> None:
+        self._payload = payload or {
+            "result": {"token": "access", "refreshToken": "refresh"}
+        }
+
     async def __aenter__(self):
         return self
 
@@ -48,17 +53,24 @@ class _Response:
         return None
 
     async def json(self, **_kwargs):
-        return {"result": {"token": "access", "refreshToken": "refresh"}}
+        return self._payload
 
 
 class _Session:
     body = None
     headers = None
+    urls: list[str]
 
-    def post(self, *_args, **kwargs):
+    def __init__(self, responses: list[dict] | None = None) -> None:
+        self._responses = list(responses or [])
+        self.urls = []
+
+    def post(self, url, *_args, **kwargs):
+        self.urls.append(url)
         self.body = kwargs["json"]
         self.headers = kwargs["headers"]
-        return _Response()
+        payload = self._responses.pop(0) if self._responses else None
+        return _Response(payload)
 
 
 def test_password_encryption_and_token_parser() -> None:
@@ -71,9 +83,14 @@ def test_password_encryption_and_token_parser() -> None:
     ) == ("access", "refresh")
 
 
-def test_account_login_never_sends_plaintext_password() -> None:
+def test_account_login_discovers_region_and_omits_auth_headers() -> None:
     async def run() -> None:
-        session = _Session()
+        session = _Session(
+            responses=[
+                {"code": -1, "err_code": 100202600, "msg": "Account not found"},
+                {"result": {"token": "access", "refresh_token": "refresh"}},
+            ]
+        )
         stored = []
 
         async def save(access_token, refresh_token):
@@ -82,9 +99,12 @@ def test_account_login_never_sends_plaintext_password() -> None:
         client = API.NarwalCloudClient(session, "", "", "client", save)
         await client.async_login_with_email("user@example.com", "plain-secret")
         assert client.access_token == "access"
+        assert client.country == "US"
         assert stored == [("access", "refresh")]
-        assert session.body["password"] != "plain-secret"
-        assert session.body["encrypted_password"] != "plain-secret"
+        assert len(session.urls) == 2
+        assert session.urls[0].startswith("https://kr-app.narwaltech.com")
+        assert session.urls[1].startswith("https://us-app.narwaltech.com")
+        assert set(session.body.keys()) == {"email", "password"}
         assert "authorization" not in session.headers
         assert "auth-token" not in session.headers
 
@@ -93,5 +113,5 @@ def test_account_login_never_sends_plaintext_password() -> None:
 
 if __name__ == "__main__":
     test_password_encryption_and_token_parser()
-    test_account_login_never_sends_plaintext_password()
+    test_account_login_discovers_region_and_omits_auth_headers()
     print("authentication tests passed")

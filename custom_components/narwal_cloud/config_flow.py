@@ -19,6 +19,7 @@ from .const import (
     CONF_ACCESS_TOKEN,
     CONF_AUTH_METHOD,
     CONF_CLIENT_UUID,
+    CONF_COUNTRY,
     CONF_DEVICE_ID,
     CONF_DEVICE_NAME,
     CONF_EMAIL,
@@ -175,6 +176,7 @@ class NarwalCloudConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 entry.data.get(CONF_CLIENT_UUID, uuid.uuid4().hex),
                 email=user_input[CONF_EMAIL],
                 password=user_input[CONF_PASSWORD],
+                country=entry.data.get(CONF_COUNTRY),
             )
             try:
                 await client.async_login_with_email(
@@ -195,6 +197,7 @@ class NarwalCloudConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         data_updates={
                             **entry.data,
                             CONF_AUTH_METHOD: AUTH_METHOD_ACCOUNT,
+                            CONF_COUNTRY: client.country,
                             CONF_EMAIL: user_input[CONF_EMAIL],
                             CONF_PASSWORD: user_input[CONF_PASSWORD],
                             CONF_ACCESS_TOKEN: client.access_token,
@@ -232,6 +235,7 @@ class NarwalCloudConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             title=str(device.get("robotName") or "Narwal"),
             data={
                 **auth_data,
+                CONF_COUNTRY: client.country,
                 CONF_ACCESS_TOKEN: client.access_token,
                 CONF_REFRESH_TOKEN: client.refresh_token,
                 CONF_CLIENT_UUID: client.client_uuid,

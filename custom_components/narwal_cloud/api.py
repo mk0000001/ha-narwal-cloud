@@ -1,4 +1,4 @@
-"""Small async client for Narwal's Korean cloud endpoint.
+"""Small async client for Narwal's regional cloud endpoints.
 
 Only data required by Home Assistant is retained. Tokens never appear in
 logging or exceptions.
@@ -8,11 +8,19 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
+import logging
 from typing import Any
 
 from aiohttp import ClientError, ClientSession
 
-from .const import API_BASE_URL, CLIENT_APPLICATION_ID, CLIENT_APP_VERSION, CLIENT_VERSION_CODE
+from .const import (
+    API_BASE_URL,
+    CLIENT_APPLICATION_ID,
+    CLIENT_APP_VERSION,
+    CLIENT_VERSION_CODE,
+    DEFAULT_COUNTRY,
+    REGIONAL_API_BASE_URLS,
+)
 from .auth import (
     NarwalCredentials,
     encrypt_account_password,
@@ -33,6 +41,12 @@ from .protocol import (
 )
 
 TokenUpdateCallback = Callable[[str, str], Awaitable[None]]
+
+_LOGGER = logging.getLogger(__name__)
+
+# Narwal error code returned when an email address is not registered on a
+# particular regional gateway (as opposed to 111005 for wrong password format).
+ERR_CODE_ACCOUNT_NOT_FOUND = 100202600
 
 
 class NarwalCloudError(Exception):
@@ -55,6 +69,7 @@ class NarwalCloudClient:
         on_token_update: TokenUpdateCallback | None = None,
         email: str | None = None,
         password: str | None = None,
+        country: str | None = None,
     ) -> None:
         self._session = session
         self._credentials = NarwalCredentials(
@@ -63,6 +78,10 @@ class NarwalCloudClient:
         self._on_token_update = on_token_update
         self._email = email
         self._password = password
+        self._country = (
+            country if country in REGIONAL_API_BASE_URLS else DEFAULT_COUNTRY
+        )
+        self._country_pinned = country in REGIONAL_API_BASE_URLS
 
     @property
     def access_token(self) -> str:
@@ -79,8 +98,27 @@ class NarwalCloudClient:
         """Return the account UUID required by Narwal MQTT."""
         return self._credentials.client_uuid
 
-    def _headers(self) -> dict[str, str]:
+    @property
+    def country(self) -> str:
+        """Return the active regional country code (e.g. KR, US, EU, DE)."""
+        return self._country
+
+    @property
+    def api_base_url(self) -> str:
+        """Return the base URL for the active regional gateway."""
+        return REGIONAL_API_BASE_URLS.get(self._country, API_BASE_URL)
+
+    def _candidate_countries(self) -> tuple[str, ...]:
+        """Return regional gateways ordered with the current country first."""
+        ordered = [self._country]
+        for code in REGIONAL_API_BASE_URLS:
+            if code not in ordered:
+                ordered.append(code)
+        return tuple(ordered)
+
+    def _headers(self, country: str | None = None) -> dict[str, str]:
         """Return the non-identifying Android client headers expected by Narwal."""
+        active_country = country or self._country
         return {
             "accept-encoding": "gzip",
             "aiot-application-id": CLIENT_APPLICATION_ID,
@@ -90,7 +128,7 @@ class NarwalCloudClient:
             "app_version": CLIENT_APP_VERSION,
             "auth-token": self.access_token,
             "authorization": self.access_token,
-            "country_code": "KR",
+            "country_code": active_country,
             "did": self.client_uuid,
             "is_app": "true",
             "is_beta": "false",
@@ -101,31 +139,27 @@ class NarwalCloudClient:
             "version_code": CLIENT_VERSION_CODE,
         }
 
-    async def _request(
+    async def _request_once(
         self,
         method: str,
         path: str,
         *,
+        country: str,
         params: dict[str, str] | None = None,
         json: dict[str, Any] | None = None,
-        retry_auth: bool = True,
     ) -> dict[str, Any]:
-        """Perform a request and refresh once if the access token is rejected."""
+        """Perform a single HTTP request against a specific regional gateway."""
+        base_url = REGIONAL_API_BASE_URLS.get(country, API_BASE_URL)
         try:
             async with self._session.request(
                 method,
-                f"{API_BASE_URL}{path}",
-                headers=self._headers(),
+                f"{base_url}{path}",
+                headers=self._headers(country),
                 params=params,
                 json=json,
                 timeout=20,
             ) as response:
                 if response.status in (401, 403):
-                    if retry_auth:
-                        await self.async_refresh_token()
-                        return await self._request(
-                            method, path, params=params, json=json, retry_auth=False
-                        )
                     raise NarwalCloudAuthError("Narwal rejected the access token")
                 response.raise_for_status()
                 payload = await response.json(content_type=None)
@@ -139,78 +173,170 @@ class NarwalCloudClient:
         code = payload.get("code")
         message = payload.get("msg") or payload.get("message")
         if code == -1 and isinstance(message, str) and "token" in message.lower():
-            if retry_auth:
-                await self.async_refresh_token()
-                return await self._request(
-                    method, path, params=params, json=json, retry_auth=False
-                )
             raise NarwalCloudAuthError("Narwal rejected the access token")
+        if not self._country_pinned:
+            result = payload.get("result")
+            if (
+                code not in (0, None)
+                or not result
+                or (
+                    isinstance(result, dict)
+                    and "deviceInfoList" in result
+                    and not result["deviceInfoList"]
+                )
+            ):
+                raise NarwalCloudAuthError(
+                    "Narwal regional gateway did not match account or device"
+                )
         if payload.get("success") is False:
             raise NarwalCloudError("Narwal API request failed")
         return payload
 
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        *,
+        params: dict[str, str] | None = None,
+        json: dict[str, Any] | None = None,
+        retry_auth: bool = True,
+    ) -> dict[str, Any]:
+        """Perform a request, probing regional gateways if country is not pinned."""
+        countries = (
+            (self._country,)
+            if self._country_pinned
+            else self._candidate_countries()
+        )
+        last_auth_err: NarwalCloudAuthError | None = None
+        for country in countries:
+            try:
+                payload = await self._request_once(
+                    method,
+                    path,
+                    country=country,
+                    params=params,
+                    json=json,
+                )
+            except NarwalCloudAuthError as err:
+                last_auth_err = err
+                continue
+            self._country = country
+            self._country_pinned = True
+            return payload
+
+        if retry_auth:
+            await self.async_refresh_token()
+            return await self._request(
+                method, path, params=params, json=json, retry_auth=False
+            )
+        raise last_auth_err or NarwalCloudAuthError(
+            "Narwal rejected the access token"
+        )
+
     async def async_refresh_token(self) -> None:
         """Exchange the stored refresh token and persist the rotated pair."""
-        try:
-            async with self._session.post(
-                f"{API_BASE_URL}/user-authentication-server/v1/token/refresh",
-                headers={**self._headers(), "content-type": "application/json; charset=utf-8"},
-                json={"refreshToken": self.refresh_token},
-                timeout=20,
-            ) as response:
-                response.raise_for_status()
-                payload = await response.json(content_type=None)
-        except (ClientError, TimeoutError, ValueError) as err:
-            if self._email is not None and self._password is not None:
-                await self.async_login_with_email(self._email, self._password)
-                return
-            raise NarwalCloudAuthError(
-                "Narwal session needs to be connected again"
-            ) from err
+        countries = (
+            (self._country,)
+            if self._country_pinned
+            else self._candidate_countries()
+        )
+        for country in countries:
+            base_url = REGIONAL_API_BASE_URLS.get(country, API_BASE_URL)
+            try:
+                async with self._session.post(
+                    f"{base_url}/user-authentication-server/v1/token/refresh",
+                    headers={
+                        **self._headers(country),
+                        "content-type": "application/json; charset=utf-8",
+                    },
+                    json={"refreshToken": self.refresh_token},
+                    timeout=20,
+                ) as response:
+                    response.raise_for_status()
+                    payload = await response.json(content_type=None)
+            except (ClientError, TimeoutError, ValueError):
+                continue
 
-        pair = token_pair_from_payload(payload) if isinstance(payload, dict) else None
-        if pair is None:
-            if self._email is not None and self._password is not None:
-                await self.async_login_with_email(self._email, self._password)
-                return
-            raise NarwalCloudAuthError(
-                "Narwal session needs to be connected again"
+            pair = (
+                token_pair_from_payload(payload)
+                if isinstance(payload, dict)
+                else None
             )
+            if pair is not None:
+                self._country = country
+                self._country_pinned = True
+                await self._async_store_token_pair(*pair)
+                return
 
-        await self._async_store_token_pair(*pair)
+        if self._email is not None and self._password is not None:
+            await self.async_login_with_email(self._email, self._password)
+            return
+        raise NarwalCloudAuthError(
+            "Narwal session needs to be connected again"
+        )
 
     async def async_login_with_email(self, email: str, password: str) -> None:
         """Create a Narwal app session from an email and password."""
-        encrypted_password = encrypt_account_password(password)
-        headers = self._headers()
-        headers.pop("auth-token", None)
-        headers.pop("authorization", None)
-        try:
-            async with self._session.post(
-                f"{API_BASE_URL}/user-authentication-server/v2/login/loginByEmail",
-                headers={
-                    **headers,
-                    "content-type": "application/json; charset=utf-8",
-                },
-                # The current app names the RSA ciphertext encrypted_password.
-                # password is included for compatibility with older regional
-                # gateways that used the earlier field name.
-                json={
-                    "email": email,
-                    "encrypted_password": encrypted_password,
-                    "password": encrypted_password,
-                },
-                timeout=20,
-            ) as response:
-                response.raise_for_status()
-                payload = await response.json(content_type=None)
-        except (ClientError, TimeoutError, ValueError) as err:
-            raise NarwalCloudAuthError("Unable to sign in to Narwal") from err
+        pair: tuple[str, str] | None = None
+        last_payload: dict[str, Any] | None = None
+        matched_country = self._country
 
-        pair = token_pair_from_payload(payload) if isinstance(payload, dict) else None
+        for country in self._candidate_countries():
+            base_url = REGIONAL_API_BASE_URLS.get(country, API_BASE_URL)
+            headers = self._headers(country)
+            headers.pop("auth-token", None)
+            headers.pop("authorization", None)
+
+            for candidate_password in (
+                password,
+                encrypt_account_password(password),
+            ):
+                try:
+                    async with self._session.post(
+                        f"{base_url}/user-authentication-server/v2/login/loginByEmail",
+                        headers={
+                            **headers,
+                            "content-type": "application/json; charset=utf-8",
+                        },
+                        json={
+                            "email": email,
+                            "password": candidate_password,
+                        },
+                        timeout=20,
+                    ) as response:
+                        response.raise_for_status()
+                        payload = await response.json(content_type=None)
+                except (ClientError, TimeoutError, ValueError) as err:
+                    raise NarwalCloudAuthError(
+                        "Unable to sign in to Narwal"
+                    ) from err
+
+                if not isinstance(payload, dict):
+                    continue
+                last_payload = payload
+                pair = token_pair_from_payload(payload)
+                if pair is not None:
+                    matched_country = country
+                    break
+                if payload.get("err_code") == ERR_CODE_ACCOUNT_NOT_FOUND:
+                    # Email is not registered on this regional gateway; try next region.
+                    break
+
+            if pair is not None:
+                break
+
         if pair is None:
+            if last_payload is not None:
+                _LOGGER.warning(
+                    "Narwal login rejected: code=%s err_code=%s msg=%s",
+                    last_payload.get("code"),
+                    last_payload.get("err_code"),
+                    last_payload.get("msg") or last_payload.get("message"),
+                )
             raise NarwalCloudAuthError("Narwal rejected the account login")
 
+        self._country = matched_country
+        self._country_pinned = True
         self._email = email
         self._password = password
         await self._async_store_token_pair(*pair)
@@ -287,7 +413,7 @@ class NarwalCloudClient:
         payload = await self._request(
             "GET",
             "/iot-broker-discover/app/v1/broker/discover",
-            params={"country": "KR"},
+            params={"country": self._country},
         )
         result = payload.get("result")
         if not isinstance(result, str) or "://" not in result:
